@@ -1,0 +1,36 @@
+Loading data/raw/loan.csv ...
+Raw rows: 2,260,668
+After filters (finished, Individual, 2012-2015): 782,642
+Dropped 0 rows with annual_inc <= 0
+Final dataset: 782,642 loans, default rate 18.6%
+
+Out-of-time split:
+  train   409,628 loans (52%), default 17.3%, Jan 2012 - Dec 2014
+  val     161,921 loans (21%), default 20.4%, Jan 2015 - Jun 2015
+  test    211,093 loans (27%), default 20.0%, Jul 2015 - Dec 2015
+
+Demo applications: 200 (from test set, with synthetic PII), 9 with borrower description, default rate 48.0%
+
+Missing % in model features (train):
+  mths_since_last_record            86.0%
+  mths_since_last_major_derog       76.7%
+  mths_since_last_delinq            52.8%
+  mths_since_recent_inq             11.7%
+  pct_tl_nvr_dlq                     6.8%
+  avg_cur_bal                        6.8%
+  mo_sin_old_rev_tl_op               6.8%
+  mo_sin_rcnt_tl                     6.8%
+  tot_cur_bal                        6.8%
+  tot_hi_cred_lim                    6.8%
+  num_actv_rev_tl                    6.8%
+  total_rev_hi_lim                   6.8%
+  num_tl_90g_dpd_24m                 6.8%
+  num_accts_ever_120_pd              6.8%
+  emp_length_years                   4.7%
+  bc_util                            2.8%
+  percent_bc_gt_75                   2.8%
+  bc_open_to_buy                     2.8%
+  acc_open_past_24mths               1.8%
+  total_bc_limit                     1.8%
+  mort_acc                           1.8%
+  revol_util                         0.1%

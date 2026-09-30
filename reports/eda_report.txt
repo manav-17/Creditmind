@@ -1,0 +1,281 @@
+FILE: data/raw/loan.csv  (1189 MB)
+SHAPE: 2,260,668 rows x 145 columns
+MEMORY: 5824 MB in pandas
+
+=== 1. ALL COLUMNS ===
+column                            dtype      missing%    unique  example
+id                                float64      100.0%         0  -
+member_id                         float64      100.0%         0  -
+loan_amnt                         int64          0.0%      1572  2500
+funded_amnt                       int64          0.0%      1572  2500
+funded_amnt_inv                   float64        0.0%     10057  2500.0
+term                              str            0.0%         2   36 months
+int_rate                          float64        0.0%       673  13.56
+installment                       float64        0.0%     93296  84.92
+grade                             str            0.0%         7  C
+sub_grade                         str            0.0%        35  C1
+emp_title                         str            7.4%    512694  Chef
+emp_length                        str            6.5%        11  10+ years
+home_ownership                    str            0.0%         6  RENT
+annual_inc                        float64        0.0%     89368  55000.0
+verification_status               str            0.0%         3  Not Verified
+issue_d                           str            0.0%       139  Dec-2018
+loan_status                       str            0.0%         9  Current
+pymnt_plan                        str            0.0%         2  n
+url                               float64      100.0%         0  -
+desc                              str           94.4%    124500   
+purpose                           str            0.0%        14  debt_consolidation
+title                             str            1.0%     63154  Debt consolidation
+zip_code                          str            0.0%       956  109xx
+addr_state                        str            0.0%        51  NY
+dti                               float64        0.1%     10845  18.24
+delinq_2yrs                       float64        0.0%        37  0.0
+earliest_cr_line                  str            0.0%       754  Apr-2001
+inq_last_6mths                    float64        0.0%        28  1.0
+mths_since_last_delinq            float64       51.2%       173  71.0
+mths_since_last_record            float64       84.1%       129  45.0
+open_acc                          float64        0.0%        91  9.0
+pub_rec                           float64        0.0%        43  1.0
+revol_bal                         int64          0.0%    102251  4341
+revol_util                        float64        0.1%      1430  10.3
+total_acc                         float64        0.0%       152  34.0
+initial_list_status               str            0.0%         2  w
+out_prncp                         float64        0.0%    364399  2386.02
+out_prncp_inv                     float64        0.0%    377353  2386.02
+total_pymnt                       float64        0.0%   1608336  167.02
+total_pymnt_inv                   float64        0.0%   1299089  167.02
+total_rec_prncp                   float64        0.0%    487427  113.98
+total_rec_int                     float64        0.0%    629835  53.04
+total_rec_late_fee                float64        0.0%     17991  0.0
+recoveries                        float64        0.0%    127920  0.0
+collection_recovery_fee           float64        0.0%    140449  0.0
+last_pymnt_d                      str            0.1%       135  Feb-2019
+last_pymnt_amnt                   float64        0.0%    692560  84.92
+next_pymnt_d                      str           57.7%       105  Mar-2019
+last_credit_pull_d                str            0.0%       140  Feb-2019
+collections_12_mths_ex_med        float64        0.0%        16  0.0
+mths_since_last_major_derog       float64       74.3%       183  45.0
+policy_code                       int64          0.0%         1  1
+application_type                  str            0.0%         2  Individual
+annual_inc_joint                  float64       94.7%     17633  104424.0
+dti_joint                         float64       94.7%      4018  10.77
+verification_status_joint         str           94.9%         3  Verified
+acc_now_delinq                    float64        0.0%         9  0.0
+tot_coll_amt                      float64        3.1%     15574  0.0
+tot_cur_bal                       float64        3.1%    487688  16901.0
+open_acc_6m                       float64       38.3%        19  2.0
+open_act_il                       float64       38.3%        54  2.0
+open_il_12m                       float64       38.3%        19  1.0
+open_il_24m                       float64       38.3%        31  2.0
+mths_since_rcnt_il                float64       40.3%       405  2.0
+total_bal_il                      float64       38.3%    162249  12560.0
+il_util                           float64       47.3%       280  69.0
+open_rv_12m                       float64       38.3%        29  2.0
+open_rv_24m                       float64       38.3%        50  7.0
+max_bal_bc                        float64       38.3%     33726  2137.0
+all_util                          float64       38.3%       188  28.0
+total_rev_hi_lim                  float64        3.1%     34220  42000.0
+inq_fi                            float64       38.3%        33  1.0
+total_cu_tl                       float64       38.3%        62  11.0
+inq_last_12m                      float64       38.3%        48  2.0
+acc_open_past_24mths              float64        2.2%        57  9.0
+avg_cur_bal                       float64        3.1%     88597  1878.0
+bc_open_to_buy                    float64        3.3%     91500  34360.0
+bc_util                           float64        3.4%      1494  5.9
+chargeoff_within_12_mths          float64        0.0%        11  0.0
+delinq_amnt                       float64        0.0%      2617  0.0
+mo_sin_old_il_acct                float64        6.2%       566  140.0
+mo_sin_old_rev_tl_op              float64        3.1%       787  212.0
+mo_sin_rcnt_rev_tl_op             float64        3.1%       333  1.0
+mo_sin_rcnt_tl                    float64        3.1%       232  1.0
+mort_acc                          float64        2.2%        47  0.0
+mths_since_recent_bc              float64        3.2%       546  1.0
+mths_since_recent_bc_dlq          float64       77.0%       177  33.0
+mths_since_recent_inq             float64       13.1%        26  2.0
+mths_since_recent_revol_delinq    float64       67.3%       179  32.0
+num_accts_ever_120_pd             float64        3.1%        44  0.0
+num_actv_bc_tl                    float64        3.1%        42  2.0
+num_actv_rev_tl                   float64        3.1%        57  5.0
+num_bc_sats                       float64        2.6%        60  3.0
+num_bc_tl                         float64        3.1%        76  3.0
+num_il_tl                         float64        3.1%       122  16.0
+num_op_rev_tl                     float64        3.1%        81  7.0
+num_rev_accts                     float64        3.1%       117  18.0
+num_rev_tl_bal_gt_0               float64        3.1%        50  5.0
+num_sats                          float64        2.6%        91  9.0
+num_tl_120dpd_2m                  float64        6.8%         7  0.0
+num_tl_30dpd                      float64        3.1%         5  0.0
+num_tl_90g_dpd_24m                float64        3.1%        34  0.0
+num_tl_op_past_12m                float64        3.1%        33  3.0
+pct_tl_nvr_dlq                    float64        3.1%       690  100.0
+percent_bc_gt_75                  float64        3.3%       284  0.0
+pub_rec_bankruptcies              float64        0.1%        12  1.0
+tax_liens                         float64        0.0%        42  0.0
+tot_hi_cred_lim                   float64        3.1%    529972  60124.0
+total_bal_ex_mort                 float64        2.2%    212777  16901.0
+total_bc_limit                    float64        2.2%     20309  36500.0
+total_il_high_credit_limit        float64        3.1%    194137  18124.0
+revol_bal_joint                   float64       95.2%     56875  10286.0
+sec_app_earliest_cr_line          str           95.2%       663  May-2002
+sec_app_inq_last_6mths            float64       95.2%         7  2.0
+sec_app_mort_acc                  float64       95.2%        23  3.0
+sec_app_open_acc                  float64       95.2%        67  2.0
+sec_app_revol_util                float64       95.3%      1216  44.1
+sec_app_open_act_il               float64       95.2%        40  0.0
+sec_app_num_rev_accts             float64       95.2%        86  6.0
+sec_app_chargeoff_within_12_mths  float64       95.2%        22  0.0
+sec_app_collections_12_mths_ex_medfloat64       95.2%        18  0.0
+sec_app_mths_since_last_major_derogfloat64       98.4%       140  46.0
+hardship_flag                     str            0.0%         2  N
+hardship_type                     str           99.5%         1  INTEREST ONLY-3 MONTHS DEFERRAL
+hardship_reason                   str           99.5%         9  UNEMPLOYMENT
+hardship_status                   str           99.5%         3  ACTIVE
+deferral_term                     float64       99.5%         1  3.0
+hardship_amount                   float64       99.5%      8950  378.39
+hardship_start_date               str           99.5%        26  Feb-2019
+hardship_end_date                 str           99.5%        27  Apr-2019
+payment_plan_start_date           str           99.5%        26  Feb-2019
+hardship_length                   float64       99.5%         1  3.0
+hardship_dpd                      float64       99.5%        34  22.0
+hardship_loan_status              str           99.5%         5  Late (16-30 days)
+orig_projected_additional_accrued_interestfloat64       99.6%      7313  1135.17
+hardship_payoff_balance_amount    float64       99.5%     10591  15351.85
+hardship_last_payment_amount      float64       99.5%      8795  1045.41
+disbursement_method               str            0.0%         2  Cash
+debt_settlement_flag              str            0.0%         2  N
+debt_settlement_flag_date         str           98.5%        82  Feb-2019
+settlement_status                 str           98.5%         3  ACTIVE
+settlement_date                   str           98.5%        89  Feb-2019
+settlement_amount                 float64       98.5%     21519  5443.0
+settlement_percentage             float64       98.5%      2045  65.0
+settlement_term                   float64       98.5%        40  18.0
+
+=== 2. LOAN STATUS (target) ===
+loan_status
+Fully Paid                                             1041952
+Current                                                 919695
+Charged Off                                             261655
+Late (31-120 days)                                       21897
+In Grace Period                                           8952
+Late (16-30 days)                                         3737
+Does not meet the credit policy. Status:Fully Paid        1988
+Does not meet the credit policy. Status:Charged Off        761
+Default                                                     31
+
+=== 3. PLANNED COLUMNS: FOUND / MISSING ===
+Model features: 22/24 found
+   missing: ['fico_range_low', 'fico_range_high']
+Text fields (agents): 3/3 found
+Target / date: 2/2 found
+Leakage (to drop): 17/19 found
+   missing: ['last_fico_range_high', 'last_fico_range_low']
+LC risk outputs (to drop): 4/4 found
+Proxies / IDs (to drop): 6/6 found
+
+Columns in file not in any plan (91): ['initial_list_status', 'mths_since_last_major_derog', 'annual_inc_joint', 'dti_joint', 'verification_status_joint', 'tot_coll_amt', 'tot_cur_bal', 'open_acc_6m', 'open_act_il', 'open_il_12m', 'open_il_24m', 'mths_since_rcnt_il', 'total_bal_il', 'il_util', 'open_rv_12m', 'open_rv_24m', 'max_bal_bc', 'all_util', 'total_rev_hi_lim', 'inq_fi', 'total_cu_tl', 'inq_last_12m', 'acc_open_past_24mths', 'avg_cur_bal', 'bc_open_to_buy', 'bc_util', 'chargeoff_within_12_mths', 'delinq_amnt', 'mo_sin_old_il_acct', 'mo_sin_old_rev_tl_op', 'mo_sin_rcnt_rev_tl_op', 'mo_sin_rcnt_tl', 'mort_acc', 'mths_since_recent_bc', 'mths_since_recent_bc_dlq', 'mths_since_recent_inq', 'mths_since_recent_revol_delinq', 'num_accts_ever_120_pd', 'num_actv_bc_tl', 'num_actv_rev_tl', 'num_bc_sats', 'num_bc_tl', 'num_il_tl', 'num_op_rev_tl', 'num_rev_accts', 'num_rev_tl_bal_gt_0', 'num_sats', 'num_tl_120dpd_2m', 'num_tl_30dpd', 'num_tl_90g_dpd_24m', 'num_tl_op_past_12m', 'pct_tl_nvr_dlq', 'percent_bc_gt_75', 'tax_liens', 'tot_hi_cred_lim', 'total_bal_ex_mort', 'total_bc_limit', 'total_il_high_credit_limit', 'revol_bal_joint', 'sec_app_earliest_cr_line', 'sec_app_inq_last_6mths', 'sec_app_mort_acc', 'sec_app_open_acc', 'sec_app_revol_util', 'sec_app_open_act_il', 'sec_app_num_rev_accts', 'sec_app_chargeoff_within_12_mths', 'sec_app_collections_12_mths_ex_med', 'sec_app_mths_since_last_major_derog', 'hardship_flag', 'hardship_type', 'hardship_reason', 'hardship_status', 'deferral_term', 'hardship_amount', 'hardship_start_date', 'hardship_end_date', 'payment_plan_start_date', 'hardship_length', 'hardship_dpd', 'hardship_loan_status', 'orig_projected_additional_accrued_interest', 'hardship_payoff_balance_amount', 'hardship_last_payment_amount', 'disbursement_method', 'debt_settlement_flag_date', 'settlement_status', 'settlement_date', 'settlement_amount', 'settlement_percentage', 'settlement_term']
+
+=== 4. FINISHED LOANS (Fully Paid vs Charged Off) ===
+Finished loans: 1,306,356
+Default (Charged Off) rate: 20.1%
+(statuses containing 'Does not meet the credit policy' are included above; check section 2)
+
+Default rate by term:
+            loans  default_%
+term                        
+36 months  991192       16.1
+60 months  315164       32.6
+
+Default rate by home_ownership:
+                 loans  default_%
+home_ownership                   
+MORTGAGE        646752       17.3
+RENT            519071       23.4
+OWN             140031       20.8
+ANY                267       19.5
+OTHER              182       20.9
+NONE                53       15.1
+
+Default rate by verification_status:
+                      loans  default_%
+verification_status                   
+Source Verified      504016       21.1
+Verified             408303       23.9
+Not Verified         394037       14.8
+
+Default rate by application_type:
+                    loans  default_%
+application_type                    
+Individual        1283119       20.0
+Joint App           23237       24.7
+
+Default rate by purpose:
+                     loans  default_%
+purpose                              
+debt_consolidation  758691       21.3
+credit_card         286044       17.0
+home_improvement     84709       17.9
+other                75358       21.2
+major_purchase       28451       18.7
+small_business       15171       29.9
+medical              15081       22.0
+car                  14184       14.7
+moving                9218       23.5
+vacation              8751       19.3
+house                 7011       21.7
+wedding               2350       12.4
+renewable_energy       914       23.7
+educational            423       20.8
+
+issue_d parsed: 100.0% (raw example: Dec-2018)
+Date range: Jun 2007 to Dec 2018
+Loans and default rate by year:
+          loans  default_%
+issue_d                   
+2007        603       26.2
+2008       2393       20.7
+2009       5281       13.7
+2010      12537       14.0
+2011      21721       15.2
+2012      53367       16.2
+2013     134793       15.6
+2014     221468       18.5
+2015     373412       20.2
+2016     274699       24.3
+2017     158900       22.9
+2018      47182       14.7
+
+=== 5. NUMERIC SUMMARY (key features) ===
+                                count      mean    min        1%       50%        99%          max
+loan_amnt                   2260668.0  15046.93  500.0   1525.00  12900.00   40000.00      40000.0
+annual_inc                  2260664.0  77992.43    0.0  16800.00  65000.00  270000.00  110000000.0
+dti                         2258957.0     18.82   -1.0      1.72     17.84      42.71        999.0
+delinq_2yrs                 2260639.0      0.31    0.0      0.00      0.00       4.00         58.0
+inq_last_6mths              2260638.0      0.58    0.0      0.00      0.00       4.00         33.0
+open_acc                    2260639.0     11.61    0.0      3.00     11.00      30.00        101.0
+total_acc                   2260639.0     24.16    1.0      5.00     22.00      60.00        176.0
+pub_rec                     2260639.0      0.20    0.0      0.00      0.00       2.00         86.0
+pub_rec_bankruptcies        2259303.0      0.13    0.0      0.00      0.00       1.00         12.0
+revol_bal                   2260668.0  16658.46    0.0    126.00  11324.00   97929.98    2904836.0
+revol_util                  2258866.0     50.34    0.0      0.90     50.30      98.10        892.3
+mths_since_last_delinq      1102166.0     34.54    0.0      2.00     31.00      81.00        226.0
+mths_since_last_record       359156.0     72.31    0.0      7.00     74.00     118.00        129.0
+collections_12_mths_ex_med  2260523.0      0.02    0.0      0.00      0.00       1.00         20.0
+acc_now_delinq              2260639.0      0.00    0.0      0.00      0.00       0.00         14.0
+
+Text-formatted columns to convert:
+  term: [' 36 months', ' 60 months']
+  emp_length: ['10+ years', '6 years', '4 years', '< 1 year', '2 years', '9 years']
+  revol_util: ['10.3', '24.2', '19.1', '78.1', '3.6', '48.1']
+  int_rate: ['13.56', '18.94', '17.97', '16.14', '15.02', '14.47']
+  earliest_cr_line: ['Apr-2001', 'Jun-1987', 'Apr-2011', 'Feb-2006', 'Dec-2000', 'Sep-2002']
+
+=== 6. TEXT FIELDS ===
+desc: 125,812 non-empty (5.6%), avg length 239 chars
+   e.g. 'Borrower added on 08/30/13 > I just recently got a new job and moved to a new apartment. I used a lot of my credit card '
+   e.g. 'Borrower added on 05/25/12 > I am trying to get this loan so that I can reduce the over $700 in credit card payment I pa'
+emp_title: 2,093,696 non-empty (92.6%), avg length 16 chars
+   e.g. 'Truck Driver'
+   e.g. 'Academic Librarian'
+title: 2,237,342 non-empty (99.0%), avg length 18 chars
+   e.g. 'Credit card refinancing'
+   e.g. 'Credit card refinancing'

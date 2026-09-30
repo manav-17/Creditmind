@@ -1,0 +1,45 @@
+# ===== Secrets (NEVER commit) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+gcp-key*.json
+service-account*.json
+
+# ===== Data (too large / not ours to redistribute) =====
+data/raw/
+data/processed/
+*.csv
+*.parquet
+!data/sample/*.csv
+
+# ===== Trained models & vector stores (rebuilt by scripts / stored in GCS) =====
+models/
+*.pkl
+*.joblib
+*.bin
+chroma_db/
+faiss_index/
+vectorstore/
+
+# ===== Python =====
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ===== Logs & temp =====
+*.log
+logs/
+tmp/
+
+# ===== OS / editor =====
+.DS_Store
+.vscode/
+.idea/
