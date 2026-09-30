@@ -49,7 +49,7 @@ def fraud_agent(state, rule_engine, config=None):
     }
     try:
         result = ask(FraudAssessment, FRAUD_SYSTEM, payload, config, name="fraud_agent")
-        result["source"] = "llm"
+        result["source"] = result.pop("_provider", "llm")
     except Exception as exc:  # deterministic fallback
         result = {"risk_level": "HIGH" if deterministic else "LOW", "income_plausible": True,
                   "indicators": [h["reason"] for h in deterministic],
@@ -96,7 +96,7 @@ def policy_agent(state, rule_engine, retrieved, config=None):
     }
     try:
         result = ask(PolicyAssessment, POLICY_SYSTEM, payload, config, name="policy_agent")
-        result["source"] = "llm"
+        result["source"] = result.pop("_provider", "llm")
     except Exception as exc:
         result = {"findings": [{"clause_id": c["clause_id"],
                                 "applies": c["clause_id"] in triggered,
@@ -121,7 +121,7 @@ def explain_agent(state, config=None):
     }
     try:
         result = ask(ExplanationOutput, EXPLAIN_SYSTEM, payload, config, name="explain_agent")
-        result["source"] = "llm"
+        result["source"] = result.pop("_provider", "llm")
     except Exception as exc:
         factors = [f"{f['name']} of {f['value']} {f['direction']}" for f in risk["top_factors"]]
         adverse = [f for f in risk["top_factors"] if f["direction"] == "increases risk"]
@@ -156,7 +156,7 @@ def decision_agent(state, feedback=None, config=None):
     try:
         result = ask(DecisionDraft, DECISION_SYSTEM, payload, config, tier="strong",
                      name="decision_agent")
-        result["source"] = "llm"
+        result["source"] = result.pop("_provider", "llm")
     except Exception as exc:
         # An empty draft fails the critic, which triggers a retry or the fail-safe
         result = {"decision": "REFER", "principal_reasons": [], "cited_clauses": [],
@@ -181,7 +181,7 @@ def report_agent(state, config=None):
     try:
         result = ask(ReportOutput, REPORT_SYSTEM, record, config, tier="strong",
                      name="report_agent")
-        result["source"] = "llm"
+        result["source"] = result.pop("_provider", "llm")
     except Exception as exc:
         d = state["final_decision"]
         reasons = "\n".join(f"- {r}" for r in d.get("principal_reasons", []))

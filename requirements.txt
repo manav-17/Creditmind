@@ -25,6 +25,7 @@ langgraph
 langgraph-checkpoint-postgres
 langchain-core
 langchain-groq
+langchain-google-genai
 langfuse
 python-dotenv
 
