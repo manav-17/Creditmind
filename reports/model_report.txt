@@ -1,0 +1,79 @@
+Features: 44 (3 categorical)
+Fit set: 341,594 | early-stopping set (Oct-Dec 2014): 68,034
+Best iteration: 467 trees
+
+=== CALIBRATION (fixing the base-rate drift) ===
+Actual default rate      val 20.4%   test 20.0%
+Raw model mean PD        val 18.2%   test 17.4%
+Calibrated mean PD       val 20.4%   test 19.5%
+Brier score (test)       raw 0.1410   calibrated 0.1399  (lower is better)
+
+=== DECISION THRESHOLD (cost matrix: false approval = 5, false rejection = 1) ===
+Cost-optimal threshold on validation: PD < 0.160 -> approve
+Theoretical optimum for calibrated PD: 0.167
+Grey zone (human review): 0.139 <= PD <= 0.174
+
+=== TEST SET PERFORMANCE (Jul-Dec 2015, never seen in training) ===
+AUC  0.7385   Gini 0.4770   KS 0.3462
+Validation AUC 0.7256 (for comparison)
+
+Three-way decision on test:
+zone        share   actual default rate
+APPROVE     38.7%                  7.7%
+REVIEW      15.4%                 15.2%
+REJECT      45.9%                 31.9%
+
+Expected cost per application (test, binary decision at the optimal threshold):
+  Approve everyone         0.9996
+  Model, naive 0.5 cutoff  0.8931
+  Model, cost-optimal      0.5794  (42% lower than approving everyone)
+
+Calibration by decile (test):
+        predicted  actual  loans
+decile                          
+1             3.6     3.6  21110
+2             6.8     6.6  21109
+3             9.2     9.2  21109
+4            12.1    12.1  21109
+5            15.7    14.7  21110
+6            17.9    18.5  21109
+7            21.1    21.7  21109
+8            26.4    27.1  21109
+9            33.5    34.4  21109
+10           48.6    51.9  21110
+
+=== GLOBAL SHAP IMPORTANCE (mean |SHAP|, log-odds) - top 15 ===
+  term_months                     0.3593
+  acc_open_past_24mths            0.1936
+  loan_to_income                  0.1762
+  num_actv_rev_tl                 0.1102
+  annual_inc                      0.0984
+  percent_bc_gt_75                0.0921
+  dti                             0.0866
+  revol_util                      0.0847
+  bc_open_to_buy                  0.0841
+  total_acc                       0.0800
+  tot_hi_cred_lim                 0.0770
+  mo_sin_old_rev_tl_op            0.0762
+  home_ownership                  0.0756
+  mths_since_recent_inq           0.0746
+  purpose                         0.0733
+
+=== FAIRNESS AUDIT (approval = PD below optimal threshold, test) ===
+
+By home_ownership:
+                 loans  approval_rate  actual_default
+home_ownership                                       
+MORTGAGE        103189           53.4            17.4
+OWN              23723           44.2            20.5
+RENT             84179           36.8            23.1
+Approval-rate ratio (lowest/highest): 0.69 (below 0.80 flags a group for review)
+
+By income_band:
+             loans  approval_rate  actual_default
+income_band                                      
+<40k         38425           26.0            22.8
+40-60k       57622           39.7            21.9
+60-90k       61309           50.0            20.0
+>90k         53737           61.5            16.0
+Approval-rate ratio (lowest/highest): 0.42 (below 0.80 flags a group for review)
