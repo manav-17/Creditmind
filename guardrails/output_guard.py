@@ -15,6 +15,7 @@ context = {
 """
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from pydantic import ValidationError
@@ -40,6 +41,8 @@ PROHIBITED = {
 }
 GENERIC_REASONS = r"\b(insufficient creditworthiness|does not meet (our )?criteria|internal policy)\b"
 CLAUSE_RE = re.compile(r"POL-\d+\.\d+")
+# Clauses that may be referenced in any explanation (decision framework and process)
+FRAMEWORK_CLAUSES = {"POL-1.2", "POL-1.3", "POL-1.4", "POL-7.2", "POL-8.1"}
 
 
 @dataclass
@@ -50,8 +53,27 @@ class OutputGuardResult:
     decision: dict = field(default_factory=dict)
 
 
+DASHES = re.compile(r"[\u2010-\u2015\u2212\u00ad\ufe58\ufe63\uff0d]")
+
+
+def normalise(text):
+    """Unicode tricks (e.g. non-breaking hyphens in 'POL\u20114.6') must not bypass checks."""
+    text = unicodedata.normalize("NFKC", str(text))
+    text = DASHES.sub("-", text)
+    return re.sub(r"[\u200b\u200c\u200d\u2060\ufeff]", "", text)
+
+
 def check_decision(raw_decision, context):
     violations, warnings = [], []
+
+    # 0. Normalise every text field before any check
+    if isinstance(raw_decision, dict):
+        raw_decision = {
+            k: ([normalise(x) for x in v] if isinstance(v, list)
+                else normalise(v) if isinstance(v, str) and k != "decision" else v)
+            for k, v in raw_decision.items()}
+        raw_decision["cited_clauses"] = [c.upper().strip()
+                                         for c in raw_decision.get("cited_clauses", [])]
 
     # 1. Schema
     try:
@@ -74,9 +96,16 @@ def check_decision(raw_decision, context):
             why.append(f"policy clauses {', '.join(policy['binding_clauses'])} require it")
         violations.append(f"Decision {decision.decision} is not allowed: minimum outcome is "
                           f"{required} ({'; '.join(why)}) - see POL-1.2 and POL-1.4")
-    elif STRICTNESS[decision.decision] > STRICTNESS[required] and not decision.principal_reasons:
-        warnings.append(f"Decision {decision.decision} is stricter than required ({required}) "
-                        "but gives no reasons")
+    elif STRICTNESS[decision.decision] > STRICTNESS[required]:
+        if decision.decision == "DECLINE":
+            # An adverse decision must come from a binding rule or the model zone,
+            # never from the LLM's own judgement; it may escalate to a human instead
+            violations.append(f"DECLINE is not allowed when the minimum outcome is {required}: "
+                              "no binding rule or model zone requires it. Use REFER to "
+                              "escalate to a credit officer, or follow the minimum outcome")
+        elif not decision.principal_reasons:
+            violations.append(f"Escalating to {decision.decision} above the required "
+                              f"{required} needs specific reasons")
 
     # 3. Citations: must exist, and binding clauses must be cited
     cited = set(decision.cited_clauses) | set(CLAUSE_RE.findall(
@@ -88,6 +117,20 @@ def check_decision(raw_decision, context):
     if missing and decision.decision != "APPROVE":
         violations.append(f"Binding policy clauses not cited: {', '.join(missing)}")
 
+    # Clause IDs written in the explanation must be ones that actually drive this decision;
+    # stops the LLM attributing a rule to the wrong clause (e.g. "POL-7.1 requires referral")
+    mentioned = set(CLAUSE_RE.findall(" ".join(decision.principal_reasons)
+                                      + " " + decision.summary))
+    allowed = (set(policy["binding_clauses"]) | set(policy.get("noted_clauses", []))
+               | FRAMEWORK_CLAUSES)
+    misattributed = sorted(mentioned - allowed)
+    if misattributed:
+        violations.append(
+            f"The explanation references {', '.join(misattributed)}, which is not a binding "
+            "clause for this application. In reasons and summary, only reference the binding "
+            f"clauses ({', '.join(policy['binding_clauses']) or 'none'}) and, if needed, "
+            "POL-1.2/POL-1.3/POL-1.4")
+
     # 4. Adverse action reasons (POL-7.2)
     if decision.decision in ("DECLINE", "REFER"):
         if not decision.principal_reasons:
@@ -97,7 +140,21 @@ def check_decision(raw_decision, context):
                 violations.append(f"Reason is too generic, state the specific credit factor "
                                   f"(POL-7.2): '{reason}'")
 
-    # 5. Prohibited factors (POL-7.1)
+    # 5. Numeric claims must match the model zone (LLMs mis-compare numbers)
+    risk_text = " ".join(decision.principal_reasons + [decision.summary])
+    pd_mention = r"(probability of default|\bPD\b|default probability|risk score)"
+    if context["risk_zone"] == "APPROVE" and re.search(
+            pd_mention + r".{0,80}\b(exceed|exceeds|exceeding|above|higher than|over)\b",
+            risk_text, re.IGNORECASE):
+        violations.append("Text claims the probability of default exceeds a threshold, but "
+                          "the model zone is APPROVE (PD is below the approval threshold). "
+                          "Remove this claim; the model supports approval")
+    if context["risk_zone"] == "REJECT" and re.search(
+            pd_mention + r".{0,80}\b(below|under|lower than|within)\b.{0,30}threshold",
+            risk_text, re.IGNORECASE):
+        violations.append("Text claims PD is below a threshold, but the model zone is REJECT")
+
+    # 6. Prohibited factors (POL-7.1)
     text = " ".join(decision.principal_reasons + decision.compensating_factors
                     + [decision.summary])
     for factor, regex in PROHIBITED.items():
@@ -105,7 +162,7 @@ def check_decision(raw_decision, context):
             violations.append(f"Explanation mentions a prohibited factor ({factor}) - "
                               "remove it entirely (POL-7.1)")
 
-    # 6. PII leakage (POL-7.3)
+    # 7. PII leakage (POL-7.3)
     leaks = find_pii_leaks(text, context.get("restricted_pii"))
     if leaks:
         violations.append(f"Output contains personal data ({', '.join(leaks)}) - "

@@ -108,9 +108,13 @@ def evaluate_policy(app, injection_detected=False):
         if since_record is None or since_record < 36:
             age = f"{since_record:.0f} months ago" if since_record is not None else "date unknown"
             hit("POL-4.4", "REFER", f"Public record or bankruptcy on file ({age})")
-    if (inq is not None and inq >= 4) or (opened is not None and opened >= 10):
-        hit("POL-4.5", "REFER", f"{inq or 0:.0f} inquiries in 6 months and "
-                                f"{opened or 0:.0f} accounts opened in 24 months")
+    seeking = []
+    if inq is not None and inq >= 4:
+        seeking.append(f"{inq:.0f} credit inquiries in 6 months (limit 3)")
+    if opened is not None and opened >= 10:
+        seeking.append(f"{opened:.0f} accounts opened in 24 months (limit 9)")
+    if seeking:
+        hit("POL-4.5", "REFER", "Credit-seeking: " + "; ".join(seeking))
     if util is not None and util > 90:
         hit("POL-4.6", "REFER", f"Revolving utilization of {util:.0f}% exceeds 90%")
     elif util is not None and util >= 75:

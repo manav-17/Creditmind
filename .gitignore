@@ -13,6 +13,7 @@ data/processed/
 *.csv
 *.parquet
 !data/sample/*.csv
+outputs/
 
 # ===== Trained models & vector stores (rebuilt by scripts / stored in GCS) =====
 models/
