@@ -1,0 +1,24 @@
+# CreditMind - local infrastructure
+#   docker compose up -d db      start Postgres in the background
+#   docker compose ps            check it is healthy
+#   docker compose down          stop (data is kept in the pgdata volume)
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: creditmind-db
+    environment:
+      POSTGRES_USER: creditmind
+      POSTGRES_PASSWORD: creditmind
+      POSTGRES_DB: creditmind
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U creditmind -d creditmind"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

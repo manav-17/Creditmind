@@ -199,6 +199,28 @@ def human_review(state: CreditState):
             "audit": event("human_review", f"officer decided {outcome}")}
 
 
+def build_record(state):
+    """The complete, PII-free decision record (stored in files, the database and the UI)."""
+    return {
+        "application_id": state["application_id"],
+        "completed_at": now(),
+        "final_outcome": state.get("final_outcome"),
+        "final_decision": state.get("final_decision"),
+        "risk": state.get("risk"),
+        "constraints": state.get("constraints"),
+        "policy": {k: state.get("policy", {}).get(k)
+                   for k in ("rule_engine", "retrieved", "findings", "summary")},
+        "fraud": state.get("fraud"),
+        "explanation": state.get("explanation"),
+        "decision_attempts": state.get("attempts"),
+        "critic": state.get("critic"),
+        "human_review": state.get("human_review"),
+        "input_flags": state.get("input_flags"),
+        "report": state.get("report"),
+        "audit": state.get("audit", []),
+    }
+
+
 def report(state: CreditState, config):
     if not state.get("final_outcome"):
         state = {**state, "final_outcome": state["final_decision"]["decision"]}
@@ -210,28 +232,18 @@ def report(state: CreditState, config):
         if find_pii_leaks(result[key], pii):
             result[key], _ = _mask_known_values(result[key], pii)
 
-    record = {
-        "application_id": state["application_id"],
-        "completed_at": now(),
-        "final_outcome": state["final_outcome"],
-        "final_decision": state["final_decision"],
-        "risk": state["risk"],
-        "constraints": state["constraints"],
-        "policy": {k: state["policy"][k] for k in ("rule_engine", "retrieved", "findings",
-                                                    "summary")},
-        "fraud": state["fraud"],
-        "explanation": state["explanation"],
-        "decision_attempts": state["attempts"],
-        "human_review": state.get("human_review"),
-        "input_flags": state["input_flags"],
-        "report": result,
-    }
-    os.makedirs(DECISIONS_DIR, exist_ok=True)
-    with open(f"{DECISIONS_DIR}/{state['application_id']}.json", "w", encoding="utf-8") as f:
-        json.dump(record, f, indent=2, default=str)
-    with open(f"{DECISIONS_DIR}/{state['application_id']}.md", "w", encoding="utf-8") as f:
-        f.write(result["internal_memo"] + "\n\n---\n\n## Applicant notice\n\n"
-                + result["applicant_notice"])
+    record = build_record({**state, "report": result})
+    try:  # local copy for inspection; the API stores the record in Postgres
+        os.makedirs(DECISIONS_DIR, exist_ok=True)
+        with open(f"{DECISIONS_DIR}/{state['application_id']}.json", "w",
+                  encoding="utf-8") as f:
+            json.dump(record, f, indent=2, default=str)
+        with open(f"{DECISIONS_DIR}/{state['application_id']}.md", "w",
+                  encoding="utf-8") as f:
+            f.write(result["internal_memo"] + "\n\n---\n\n## Applicant notice\n\n"
+                    + result["applicant_notice"])
+    except OSError:
+        pass
     return {"report": result, "final_outcome": state["final_outcome"],
             "audit": event("report", f"memo saved, outcome {state['final_outcome']}")}
 

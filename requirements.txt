@@ -1,0 +1,38 @@
+# Data and ML
+pandas
+numpy
+pyarrow
+faker
+xgboost
+scikit-learn
+matplotlib
+joblib
+
+# RAG
+fastembed
+faiss-cpu
+rank-bm25
+langchain-text-splitters
+
+# Guardrails (after install: python -m spacy download en_core_web_sm)
+pydantic
+presidio-analyzer
+presidio-anonymizer
+spacy
+
+# Agents, orchestration, observability
+langgraph
+langgraph-checkpoint-postgres
+langchain-core
+langchain-groq
+langfuse
+python-dotenv
+
+# Database
+psycopg[binary,pool]
+
+# API and dashboard
+fastapi
+uvicorn[standard]
+streamlit
+requests
