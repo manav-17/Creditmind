@@ -4,25 +4,28 @@
 !.env.example
 *.pem
 *.key
-gcp-key*.json
 service-account*.json
 
-# ===== Data (too large / not ours to redistribute) =====
+# ===== Data =====
+# Raw and processed datasets stay local (too large).
+# Only the small synthetic demo set is committed (its personal details are fake).
 data/raw/
-data/processed/
+data/processed/*
+!data/processed/applications_demo.csv
 *.csv
-*.parquet
-!data/sample/*.csv
-outputs/
+!data/processed/applications_demo.csv
 
-# ===== Trained models & vector stores (rebuilt by scripts / stored in GCS) =====
-models/
+# ===== Model artifacts =====
+# Small trained artifacts ARE committed so the app can deploy from GitHub.
+models/*
+!models/xgb_model.json
+!models/calibrator.joblib
+!models/model_config.json
+vectorstore/*
+!vectorstore/policy.faiss
+!vectorstore/policy_clauses.json
 *.pkl
-*.joblib
 *.bin
-chroma_db/
-faiss_index/
-vectorstore/
 
 # ===== Python =====
 venv/
@@ -35,9 +38,14 @@ __pycache__/
 .mypy_cache/
 .ipynb_checkpoints/
 
-# ===== Logs & temp =====
-*.log
+# ===== Frontend (React) =====
+node_modules/
+web/dist/
+
+# ===== Generated output =====
+outputs/
 logs/
+*.log
 tmp/
 
 # ===== OS / editor =====

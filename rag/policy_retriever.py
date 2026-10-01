@@ -14,7 +14,7 @@ Hybrid search:
 import json
 import math
 import re
-
+import os
 import faiss
 import numpy as np
 from fastembed import TextEmbedding
@@ -122,7 +122,8 @@ class PolicyRetriever:
         self.clauses = data["clauses"]
         self.by_id = {c["clause_id"]: c for c in self.clauses}
         self.index = faiss.read_index(index_path)
-        self.model = TextEmbedding(model_name=data["embedding_model"])
+        self.model = TextEmbedding(model_name=data["embedding_model"],
+                                   cache_dir=os.getenv("FASTEMBED_CACHE_PATH"))
         self.bm25 = BM25Okapi([tokenize(c["content"]) for c in self.clauses])
 
     # ------------------------------------------------------------- lookups
