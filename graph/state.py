@@ -18,13 +18,20 @@ class CreditState(TypedDict, total=False):
     policy: dict              # policy agent: rule engine + retrieved clauses + findings
     constraints: dict         # consolidate: required minimum outcome and binding clauses
     explanation: dict         # explain agent
-    decision: dict            # latest decision draft
+    decision: dict            # decision chosen by the vote tally (or the retry)
     attempts: int             # decision attempts so far
+    consistency: dict         # self-consistency: votes, agreement score
+    vote_attempt: int         # Send payload for one decision vote
+    vote_index: int
+    vote_count: int
+    vote_feedback: list
+    grounding: dict           # grounding check: figures checked / unsupported
     critic: dict              # latest output-guardrail result
     final_decision: dict      # validated decision (or fail-safe)
     human_review: dict        # credit officer's decision, if referred
     final_outcome: str        # APPROVE / DECLINE / REFER (pending)
     report: dict              # memo + applicant notice
 
-    # Append-only audit log; parallel nodes can write to it at the same time
+    # Append-only lists; parallel nodes can write to them at the same time
     audit: Annotated[list, operator.add]
+    votes: Annotated[list, operator.add]   # self-consistency votes from all attempts

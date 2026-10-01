@@ -41,12 +41,12 @@ def groq_enabled():
     return bool(os.getenv("GROQ_API_KEY"))
 
 
-@lru_cache(maxsize=4)
-def _groq(tier):
+@lru_cache(maxsize=8)
+def _groq(tier, temperature=0.0):
     from langchain_groq import ChatGroq
     return ChatGroq(
         model=GROQ_FAST if tier == "fast" else GROQ_STRONG,
-        temperature=0,
+        temperature=temperature,
         # With a backup provider, fail over quickly instead of retrying Groq for long
         max_retries=1 if gemini_enabled() else 5,
         timeout=90,
@@ -64,11 +64,14 @@ def _gemini(tier):
     )
 
 
-def providers(schema, tier="fast"):
-    """Ordered list of (provider name, structured LLM) to try."""
+def providers(schema, tier="fast", temperature=0.0):
+    """Ordered list of (provider name, structured LLM) to try.
+
+    temperature > 0 is used for self-consistency voting, so votes reason independently.
+    """
     chain = []
     if groq_enabled():
-        chain.append(("groq", _groq(tier).with_structured_output(schema)))
+        chain.append(("groq", _groq(tier, temperature).with_structured_output(schema)))
     if gemini_enabled():
         chain.append(("gemini", _gemini(tier).with_structured_output(schema)))
     if not chain:

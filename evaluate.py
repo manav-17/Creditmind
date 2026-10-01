@@ -58,6 +58,7 @@ VIOLATION_TYPES = [
     ("Invalid output format", "invalid output format"),
     ("needs specific reasons", "escalation without reasons"),
     ("1-4 principal reasons", "missing reasons"),
+    ("Unsupported figures", "hallucinated figure (grounding)"),
 ]
 
 # ------------------------------------------------------------------ guardrail test data
@@ -167,6 +168,8 @@ def run_pipeline_eval(n, delay, trace):
             "attempts": result.get("attempts"),
             "fail_safe": bool(final.get("fail_safe")),
             "violations": " || ".join(violations),
+            "agreement": (result.get("consistency") or {}).get("agreement"),
+            "grounding_unsupported": len((result.get("grounding") or {}).get("unsupported", [])),
             "fraud_review": bool(result["fraud"].get("refer_for_fraud_review")),
             "fraud_source": result["fraud"].get("source", ""),
             "policy_source": result["policy"].get("source", ""),
@@ -219,6 +222,12 @@ def pipeline_section(df, invalid, n):
               f"- Fraud review referrals: **{df['fraud_review'].mean():.0%}**",
               f"- Fail-safe decisions: **{df['fail_safe'].sum()}**", ""]
 
+    if "agreement" in df.columns and df["agreement"].notna().any():
+        agree = df["agreement"].dropna()
+        lines += ["### Self-consistency voting", "",
+                  f"- Unanimous votes: **{(agree == 1.0).mean():.0%}** of applications",
+                  f"- Average agreement: **{agree.mean():.0%}**",
+                  f"- Split votes (agreement below 100%): **{(agree < 1.0).sum()}**", ""]
     lines += ["### Critic (output guardrail)", "",
               f"- Passed on first attempt: **{(df['attempts'] == 1).mean():.0%}**",
               f"- Average attempts: **{df['attempts'].mean():.2f}**", ""]

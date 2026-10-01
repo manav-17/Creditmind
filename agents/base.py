@@ -62,13 +62,13 @@ def _invoke(llm, messages, config, name, patient):
                 raise  # e.g. malformed structured output twice
 
 
-def ask(schema, system, payload, config=None, tier="fast", name="agent"):
+def ask(schema, system, payload, config=None, tier="fast", name="agent", temperature=0.0):
     """Call the LLM with failover: Groq first, then Gemini. Returns a dict.
 
     The dict includes '_provider' (e.g. 'llm:groq' or 'llm:gemini') for the audit trail.
     """
     messages = [("system", system), ("human", "INPUT (JSON):\n" + to_json(payload))]
-    chain = providers(schema, tier)
+    chain = providers(schema, tier, temperature)
     last_error = None
     for i, (provider, llm) in enumerate(chain):
         is_last = i == len(chain) - 1

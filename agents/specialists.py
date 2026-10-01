@@ -135,7 +135,7 @@ def explain_agent(state, config=None):
 
 
 # ----------------------------------------------------------------------------- Decision
-def decision_agent(state, feedback=None, config=None):
+def decision_agent(state, feedback=None, config=None, temperature=0.0, name="decision_agent"):
     risk, constraints = state["risk"], state["constraints"]
     payload = {
         "REQUIRED_MINIMUM_OUTCOME": constraints["required_outcome"],
@@ -155,7 +155,7 @@ def decision_agent(state, feedback=None, config=None):
         payload["REVIEWER_FEEDBACK_FROM_PREVIOUS_ATTEMPT"] = feedback
     try:
         result = ask(DecisionDraft, DECISION_SYSTEM, payload, config, tier="strong",
-                     name="decision_agent")
+                     name=name, temperature=temperature)
         result["source"] = result.pop("_provider", "llm")
     except Exception as exc:
         # An empty draft fails the critic, which triggers a retry or the fail-safe

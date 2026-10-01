@@ -2,35 +2,42 @@
 CreditMind - LangGraph workflow.
 
   intake ─┬─> risk_scoring ─┐
-          ├─> fraud_check  ─┼─> consolidate ─> explain ─> decide ─> critic ─┬─> report ─> END
-          └─> policy_check ─┘                              ^                │
-                                                           └── retry (≤2) ──┤
-                                                                            └─> human_review ─> report
+          ├─> fraud_check  ─┼─> consolidate ─> explain ─┬─> decide_vote x3 ─> tally ─> grounding_check ─> critic
+          └─> policy_check ─┘                           │      (Send API: parallel self-consistency votes)    │
+                                                        └──────────── retry with feedback (1 vote) <───────────┤
+                                                                                                               ├─> human_review ─> report
+                                                                                                               └─> report ─> END
 
-  * risk_scoring, fraud_check and policy_check run in parallel
-  * critic = output guardrail; failed decisions go back with feedback, max 3 attempts,
-    then a deterministic fail-safe takes over
+  * risk_scoring, fraud_check and policy_check run in parallel (fan-out / fan-in)
+  * self-consistency: N independent decision votes (Send API), median-strictness tally,
+    agreement score recorded as an uncertainty signal
+  * grounding_check: every figure in the decision must match a code-computed fact
+  * critic = output guardrail; max 3 attempts, then a deterministic fail-safe
   * REFER decisions pause at human_review (LangGraph interrupt) until a credit officer answers
 """
 
 import json
 import os
+from collections import Counter
 from datetime import datetime, timezone
 
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import interrupt
+from langgraph.types import Send, interrupt
 
 from agents.base import policy_retriever, risk_model
 from agents.specialists import (decision_agent, explain_agent, fraud_agent, policy_agent,
                                 report_agent)
 from graph.state import CreditState
 from guardrails import vault
+from guardrails.grounding import _numbers_in, build_facts, find_unsupported
 from guardrails.output_guard import ZONE_TO_OUTCOME, check_decision
 from guardrails.pii import _mask_known_values, find_pii_leaks
 from ml.risk_model import READABLE_NAMES, format_value
 from policy.rules import STRICTNESS, evaluate_policy
 
 MAX_ATTEMPTS = 3  # first try + 2 retries
+DECISION_VOTES = max(1, int(os.getenv("DECISION_VOTES", "3")))     # self-consistency votes
+VOTE_TEMPERATURE = float(os.getenv("VOTE_TEMPERATURE", "0.7"))       # diversity between votes
 DECISIONS_DIR = "outputs/decisions"
 
 
@@ -119,14 +126,66 @@ def explain(state: CreditState, config):
                                       f"[{result['source']}]")}
 
 
-def decide(state: CreditState, config):
-    attempts = state.get("attempts", 0) + 1
-    critic = state.get("critic") or {}
-    feedback = critic.get("violations") if critic and not critic.get("passed") else None
-    draft = decision_agent(state, feedback, config)
-    return {"decision": draft, "attempts": attempts,
-            "audit": event("decide", f"attempt {attempts}: {draft['decision']} "
-                                     f"[{draft['source']}]")}
+def vote_sends(state: CreditState):
+    """Fan out decision votes with the Send API (map step of map-reduce).
+
+    First attempt: DECISION_VOTES independent votes in parallel.
+    Retries: one vote that fixes the critic's feedback (the vote already happened).
+    """
+    attempt = state.get("attempts", 0) + 1
+    count = DECISION_VOTES if attempt == 1 else 1
+    critic_result = state.get("critic") or {}
+    feedback = (critic_result.get("violations")
+                if critic_result and not critic_result.get("passed") else None)
+    return [Send("decide_vote", {**state, "vote_attempt": attempt, "vote_index": i,
+                                 "vote_count": count, "vote_feedback": feedback})
+            for i in range(count)]
+
+
+def decide_vote(state: CreditState, config):
+    attempt, index, count = state["vote_attempt"], state["vote_index"], state["vote_count"]
+    temperature = VOTE_TEMPERATURE if count > 1 else 0.0
+    draft = decision_agent(state, state.get("vote_feedback"), config,
+                           temperature=temperature, name=f"decision_vote_{index + 1}")
+    return {"votes": [{**draft, "attempt": attempt, "vote": index + 1}],
+            "audit": event("decide", f"attempt {attempt} vote {index + 1}/{count}: "
+                                     f"{draft['decision']} [{draft['source']}]")}
+
+
+def tally(state: CreditState):
+    """Reduce step: median-strictness vote (majority for 3 votes; full split -> REFER)."""
+    attempt = state.get("attempts", 0) + 1
+    votes = [v for v in state.get("votes", []) if v.get("attempt") == attempt]
+    usable = [v for v in votes if v.get("summary")] or votes  # skip failed LLM calls
+    ordered = sorted(usable, key=lambda v: STRICTNESS[v["decision"]])
+    chosen_decision = ordered[len(ordered) // 2]["decision"]
+    chosen = next(v for v in usable if v["decision"] == chosen_decision)
+    decision = {k: v for k, v in chosen.items() if k not in ("attempt", "vote")}
+
+    distribution = Counter(v["decision"] for v in votes)
+    agreement = round(distribution[chosen_decision] / len(votes), 2)
+    update = {"decision": decision, "attempts": attempt}
+    if attempt == 1:  # keep the original vote as the uncertainty signal
+        update["consistency"] = {"votes": len(votes), "distribution": dict(distribution),
+                                 "chosen": chosen_decision, "agreement": agreement}
+    summary = ", ".join(f"{d} x{n}" for d, n in distribution.items())
+    update["audit"] = event("tally", f"attempt {attempt}: {summary} -> {chosen_decision}"
+                                     f" (agreement {agreement:.0%})")
+    return update
+
+
+def grounding_check(state: CreditState):
+    """Every figure in the decision text must match a fact computed by code."""
+    d = state["decision"]
+    text = " ".join(d.get("principal_reasons", []) + [d.get("summary", "")])
+    facts = build_facts(state, [c["text"] for c in policy_retriever().clauses])
+    unsupported = find_unsupported(text, facts)
+    checked = len(_numbers_in(text))
+    return {"grounding": {"attempt": state["attempts"], "checked": checked,
+                          "unsupported": unsupported},
+            "audit": event("grounding", f"{checked} figures checked, "
+                                        f"{len(unsupported)} unsupported"
+                                        + (f": {', '.join(unsupported)}" if unsupported else ""))}
 
 
 def critic(state: CreditState):
@@ -143,11 +202,18 @@ def critic(state: CreditState):
     }
     draft = {k: v for k, v in state["decision"].items() if k != "source"}
     result = check_decision(draft, context)
-    review = {"passed": result.passed, "violations": result.violations,
+    violations = list(result.violations)
+    grounding = state.get("grounding") or {}
+    if grounding.get("attempt") == state["attempts"] and grounding.get("unsupported"):
+        violations.append("Unsupported figures not found in the input data: "
+                          f"{', '.join(grounding['unsupported'])}. Use only figures provided "
+                          "in the input; never invent or estimate numbers")
+    passed = not violations
+
+    review = {"passed": passed, "violations": violations,
               "warnings": result.warnings, "attempt": state["attempts"]}
     update = {"critic": review}
-
-    if result.passed:
+    if passed:
         update["final_decision"] = {**result.decision, "fail_safe": False}
         update["audit"] = event("critic", f"attempt {state['attempts']} passed")
     elif state["attempts"] >= MAX_ATTEMPTS:
@@ -156,7 +222,7 @@ def critic(state: CreditState):
                                           "fail-safe decision applied")
     else:
         update["audit"] = event("critic", f"attempt {state['attempts']} blocked, retrying: "
-                                          + " | ".join(v[:140] for v in result.violations))
+                                          + " | ".join(v[:140] for v in violations))
     return update
 
 
@@ -213,6 +279,11 @@ def build_record(state):
         "fraud": state.get("fraud"),
         "explanation": state.get("explanation"),
         "decision_attempts": state.get("attempts"),
+        "consistency": state.get("consistency"),
+        "grounding": state.get("grounding"),
+        "votes": [{"attempt": v.get("attempt"), "vote": v.get("vote"),
+                   "decision": v.get("decision"), "source": v.get("source")}
+                  for v in state.get("votes", [])],
         "critic": state.get("critic"),
         "human_review": state.get("human_review"),
         "input_flags": state.get("input_flags"),
@@ -251,7 +322,7 @@ def report(state: CreditState, config):
 # ============================================================================ routing
 def route_after_critic(state: CreditState):
     if not state["critic"]["passed"] and state["attempts"] < MAX_ATTEMPTS:
-        return "decide"
+        return vote_sends(state)  # retry: one corrective vote with the critic's feedback
     if state["final_decision"]["decision"] == "REFER":
         return "human_review"
     return "report"
@@ -262,8 +333,10 @@ def build_graph(checkpointer=None):
     g = StateGraph(CreditState)
     for name, fn in [("intake", intake), ("risk_scoring", risk_scoring),
                      ("fraud_check", fraud_check), ("policy_check", policy_check),
-                     ("consolidate", consolidate), ("explain", explain), ("decide", decide),
-                     ("critic", critic), ("human_review", human_review), ("report", report)]:
+                     ("consolidate", consolidate), ("explain", explain),
+                     ("decide_vote", decide_vote), ("tally", tally),
+                     ("grounding_check", grounding_check), ("critic", critic),
+                     ("human_review", human_review), ("report", report)]:
         g.add_node(name, fn)
 
     g.add_edge(START, "intake")
@@ -271,10 +344,12 @@ def build_graph(checkpointer=None):
         g.add_edge("intake", branch)
     g.add_edge(["risk_scoring", "fraud_check", "policy_check"], "consolidate")  # fan-in
     g.add_edge("consolidate", "explain")
-    g.add_edge("explain", "decide")
-    g.add_edge("decide", "critic")
+    g.add_conditional_edges("explain", vote_sends, ["decide_vote"])  # Send: parallel votes
+    g.add_edge("decide_vote", "tally")                                 # reduce
+    g.add_edge("tally", "grounding_check")
+    g.add_edge("grounding_check", "critic")
     g.add_conditional_edges("critic", route_after_critic,
-                            ["decide", "human_review", "report"])
+                            ["decide_vote", "human_review", "report"])
     g.add_edge("human_review", "report")
     g.add_edge("report", END)
 
