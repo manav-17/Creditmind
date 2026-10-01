@@ -1,40 +1,74 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
 
+  /* Core colors */
   --color-ink: #13233a;
+  --color-marine: #10233d;
   --color-muted: #5b6b7f;
   --color-rule: #dce3ea;
   --color-paper: #fbfcfd;
   --color-panel: #f2f5f8;
   --color-signal: #2457c5;
 
+  /* Decision colors */
   --color-approve: #1f7a5c;
   --color-approve-tint: #e3f2ec;
+
   --color-refer: #a86a12;
   --color-refer-tint: #fbf0dc;
+
   --color-decline: #b4232c;
   --color-decline-tint: #fbe6e7;
 }
 
+/* Base document styling */
 html {
   font-feature-settings: "tnum" 1;
 }
 
 body {
+  margin: 0;
   background: var(--color-paper);
   color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+
+/* Keyboard accessibility */
 :focus-visible {
   outline: 2px solid var(--color-signal);
   outline-offset: 2px;
 }
 
+/* Form controls */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Prevent textarea resizing from breaking layouts */
+textarea {
+  resize: vertical;
+}
+
+/* Reduced-motion accessibility */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
     animation: none !important;
+    scroll-behavior: auto !important;
   }
+}
+/* Primary action button text */
+button.bg-ink {
+  color: #ffffff !important;
 }
