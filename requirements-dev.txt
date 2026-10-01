@@ -1,0 +1,9 @@
+# Local development: data preparation, training, evaluation, Streamlit prototype
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+pyarrow
+faker
+matplotlib
+streamlit
+requests
+altair

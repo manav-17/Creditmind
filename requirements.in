@@ -1,0 +1,27 @@
+# API runtime dependencies (what Railway installs).
+# Pin them to your tested local versions with:
+#   python scripts/pin_requirements.py requirements.in requirements.txt
+pandas
+numpy
+xgboost
+scikit-learn
+joblib
+fastembed
+faiss-cpu
+rank-bm25
+langchain-text-splitters
+pydantic
+presidio-analyzer
+presidio-anonymizer
+spacy
+en_core_web_sm
+langgraph
+langgraph-checkpoint-postgres
+langchain-core
+langchain-groq
+langchain-google-genai
+langfuse
+python-dotenv
+psycopg[binary,pool]
+fastapi
+uvicorn[standard]

@@ -105,3 +105,34 @@ def review_queue():
             "ORDER BY updated_at ASC")
         cols = [d.name for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def stats():
+    """Aggregates for the portfolio overview page."""
+    with _pool.connection() as conn:
+        status_rows = conn.execute(
+            "SELECT status, count(*) FROM applications GROUP BY status").fetchall()
+        outcome_rows = conn.execute(
+            "SELECT final_outcome, count(*) FROM applications "
+            "WHERE status = 'COMPLETED' GROUP BY final_outcome").fetchall()
+        zone_rows = conn.execute(
+            "SELECT risk_zone, count(*) FROM applications "
+            "WHERE risk_zone IS NOT NULL GROUP BY risk_zone").fetchall()
+        avg_pd = conn.execute(
+            "SELECT avg(probability_of_default) FROM applications "
+            "WHERE probability_of_default IS NOT NULL").fetchone()[0]
+        daily = conn.execute(
+            "SELECT date_trunc('day', created_at)::date AS day, "
+            "coalesce(final_outcome, status) AS outcome, count(*) "
+            "FROM applications WHERE created_at > now() - interval '14 days' "
+            "GROUP BY 1, 2 ORDER BY 1").fetchall()
+    by_status = {s: n for s, n in status_rows}
+    return {
+        "total": sum(by_status.values()),
+        "by_status": by_status,
+        "by_outcome": {o: n for o, n in outcome_rows if o},
+        "by_zone": {z: n for z, n in zone_rows},
+        "pending_reviews": by_status.get("PENDING_REVIEW", 0),
+        "avg_pd": float(avg_pd) if avg_pd is not None else None,
+        "daily": [{"day": d.isoformat(), "outcome": o, "count": n} for d, o, n in daily],
+    }
