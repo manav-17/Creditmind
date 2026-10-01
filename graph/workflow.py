@@ -18,6 +18,7 @@ CreditMind - LangGraph workflow.
 
 import json
 import os
+import re
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -25,8 +26,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
 
 from agents.base import policy_retriever, risk_model
-from agents.specialists import (decision_agent, explain_agent, fraud_agent, policy_agent,
-                                report_agent)
+from agents.specialists import (NEUTRAL_VERIFICATION, decision_agent, explain_agent,
+                                fraud_agent, policy_agent, reasons_for_applicant, report_agent)
 from graph.state import CreditState
 from guardrails import vault
 from guardrails.grounding import _numbers_in, build_facts, find_unsupported
@@ -93,6 +94,69 @@ def policy_check(state: CreditState, config):
                                            f"[{assessment['source']}]")}
 
 
+def _framework_text(clause_id, state, constraints):
+    """Explanations code can write exactly: their meaning is fixed by the model and rules."""
+    risk = state["risk"]
+    pd_value, t = risk["probability_of_default"], risk["thresholds"]
+    zone_text = {"APPROVE": f"below the {t['approve_below']:.1%} approval threshold",
+                 "REVIEW": f"between {t['approve_below']:.1%} and {t['reject_above']:.1%} "
+                           "(officer review zone)",
+                 "REJECT": f"above the {t['reject_above']:.1%} decline threshold"}[risk["risk_zone"]]
+    required = constraints["required_outcome"]
+    return {
+        "POL-1.2": f"Exactly one outcome applies; the minimum required outcome is "
+                   f"{required.lower()}.",
+        "POL-1.3": f"The model's probability of default is {pd_value:.1%}, {zone_text}, so the "
+                   f"model alone supports {constraints['model_required'].lower()}.",
+        "POL-1.4": f"The stricter outcome applies: model {constraints['model_required'].lower()}"
+                   f", policy rules {constraints['policy_required'].lower()}, so the minimum "
+                   f"is {required.lower()}.",
+        "POL-7.1": "Prohibited factors are excluded from the model's inputs and from every "
+                   "explanation.",
+        "POL-7.2": "Principal reasons are taken from the binding policy rules and the model's "
+                   "risk-increasing factors.",
+    }.get(clause_id)
+
+
+def _ground_findings(state, hits, constraints):
+    """Code writes what code knows; the LLM's text is kept only where it adds understanding.
+
+    * clauses triggered by the rule engine (or fraud escalation): the rule's exact reason
+    * decision-framework clauses: text computed from the model zone and rules
+    * other retrieved clauses: the policy agent's explanation, grounding-checked
+    """
+    facts = build_facts(state, [c["text"] for c in policy_retriever().clauses])
+    triggered = {h["clause_id"]: h["reason"] for h in hits}
+    noted = {h["clause_id"]: h["reason"] for h in state["policy"]["rule_engine"]["hits"]
+             if h["outcome"] == "NOTE"}
+    findings, corrected = [], []
+    for finding in state["policy"].get("findings", []):
+        cid = finding["clause_id"]
+        rule_reason = triggered.get(cid) or noted.get(cid)
+        framework = None if rule_reason else _framework_text(cid, state, constraints)
+        if rule_reason:
+            finding = {**finding, "applies": True, "explanation": rule_reason,
+                       "source": "rule_engine"}
+        elif framework:
+            finding = {**finding, "applies": True, "explanation": framework,
+                       "source": "system"}
+        else:
+            unsupported = find_unsupported(finding.get("explanation", ""), facts)
+            if unsupported:
+                corrected.append(f"{cid} ({', '.join(unsupported)})")
+                finding = {**finding, "unverified_figures": unsupported,
+                           "explanation": "Explanation removed: it contained figures that "
+                                          "could not be verified against the application data."}
+            finding = {**finding, "source": "llm"}
+        findings.append(finding)
+    present = {f["clause_id"] for f in findings}
+    for cid, reason in triggered.items():  # every binding clause appears in the findings
+        if cid not in present:
+            findings.append({"clause_id": cid, "applies": True, "explanation": reason,
+                             "source": "rule_engine"})
+    return findings, corrected
+
+
 def consolidate(state: CreditState):
     """Fan-in: combine model zone, policy rules and fraud escalation into hard constraints."""
     rules = state["policy"]["rule_engine"]
@@ -114,9 +178,15 @@ def consolidate(state: CreditState):
         "binding_clauses": sorted({h["clause_id"] for h in binding}),
         "binding_reasons": [h["reason"] for h in binding],
     }
+    findings, corrected = _ground_findings(state, hits, constraints)
+    audit = event("consolidate", f"required minimum outcome {required} "
+                                 f"(model {model_required}, policy {policy_required})")
+    if corrected:
+        audit += event("grounding", "policy findings corrected, unverified figures: "
+                                    + "; ".join(corrected))
     return {"constraints": constraints,
-            "audit": event("consolidate", f"required minimum outcome {required} "
-                                          f"(model {model_required}, policy {policy_required})")}
+            "policy": {**state["policy"], "findings": findings},
+            "audit": audit}
 
 
 def explain(state: CreditState, config):
@@ -292,6 +362,23 @@ def build_record(state):
     }
 
 
+SOURCE_LABELS = {"rule_engine": "rule engine", "system": "system", "llm": "policy agent"}
+
+
+def policy_table(findings):
+    """The official policy findings, written by code from the decision record."""
+    rows = [f for f in findings if f.get("applies")]
+    if not rows:
+        return ""
+    lines = ["## Policy findings (system record)", "",
+             "| Clause | Finding | Source |", "|---|---|---|"]
+    for f in rows:
+        text = str(f.get("explanation", "")).replace("|", "/").replace("\n", " ")
+        source = SOURCE_LABELS.get(f.get("source"), "policy agent")
+        lines.append(f"| {f['clause_id']} | {text} | {source} |")
+    return "\n".join(lines)
+
+
 def report(state: CreditState, config):
     if not state.get("final_outcome"):
         state = {**state, "final_outcome": state["final_decision"]["decision"]}
@@ -303,6 +390,20 @@ def report(state: CreditState, config):
         if find_pii_leaks(result[key], pii):
             result[key], _ = _mask_known_values(result[key], pii)
 
+    # The neutral verification reason can never be dropped from a decline letter
+    notice = result["applicant_notice"]
+    if (state["final_outcome"] == "DECLINE"
+            and NEUTRAL_VERIFICATION.rstrip(".") in reasons_for_applicant(state)
+            and "verify" not in notice.lower()):
+        marker = re.search(r"\n\s*(Sincerely|Regards|Kind regards|Yours)", notice)
+        insert = f"\n\n{NEUTRAL_VERIFICATION}\n"
+        notice = (notice[:marker.start()] + insert + notice[marker.start():]) if marker \
+            else notice.rstrip() + insert
+        result["applicant_notice"] = notice
+
+    table = policy_table(state["policy"].get("findings", []))
+    if table:
+        result["internal_memo"] = result["internal_memo"].rstrip() + "\n\n" + table
     record = build_record({**state, "report": result})
     try:  # local copy for inspection; the API stores the record in Postgres
         os.makedirs(DECISIONS_DIR, exist_ok=True)

@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-ink: #13233a;
+  --color-muted: #5b6b7f;
+  --color-rule: #dce3ea;
+  --color-paper: #fbfcfd;
+  --color-panel: #f2f5f8;
+  --color-signal: #2457c5;
+
+  --color-approve: #1f7a5c;
+  --color-approve-tint: #e3f2ec;
+  --color-refer: #a86a12;
+  --color-refer-tint: #fbf0dc;
+  --color-decline: #b4232c;
+  --color-decline-tint: #fbe6e7;
+}
+
+html {
+  font-feature-settings: "tnum" 1;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

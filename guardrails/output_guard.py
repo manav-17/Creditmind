@@ -38,11 +38,13 @@ PROHIBITED = {
     "pregnancy": r"\b(pregnant|pregnancy)\b",
     "location proxy": r"\b(zip ?code|postal code|pin ?code|state of residence|neighbou?rhood)\b",
     "public assistance": r"\b(public assistance|welfare|food stamps)\b",
+    "prohibited factors (even to deny them)": r"\bprohibited (factor|factors|characteristic|characteristics)\b",
 }
 GENERIC_REASONS = r"\b(insufficient creditworthiness|does not meet (our )?criteria|internal policy)\b"
 CLAUSE_RE = re.compile(r"POL-\d+\.\d+")
-# Clauses that may be referenced in any explanation (decision framework and process)
-FRAMEWORK_CLAUSES = {"POL-1.2", "POL-1.3", "POL-1.4", "POL-7.2", "POL-8.1"}
+# Decision-framework clauses: may be referenced in the summary when explaining precedence,
+# but never as the source of a principal reason
+FRAMEWORK_CLAUSES = {"POL-1.2", "POL-1.3", "POL-1.4"}
 
 
 @dataclass
@@ -119,17 +121,17 @@ def check_decision(raw_decision, context):
 
     # Clause IDs written in the explanation must be ones that actually drive this decision;
     # stops the LLM attributing a rule to the wrong clause (e.g. "POL-7.1 requires referral")
-    mentioned = set(CLAUSE_RE.findall(" ".join(decision.principal_reasons)
-                                      + " " + decision.summary))
-    allowed = (set(policy["binding_clauses"]) | set(policy.get("noted_clauses", []))
-               | FRAMEWORK_CLAUSES)
-    misattributed = sorted(mentioned - allowed)
+    applicable = set(policy["binding_clauses"]) | set(policy.get("noted_clauses", []))
+    in_reasons = set(CLAUSE_RE.findall(" ".join(decision.principal_reasons)))
+    in_summary = set(CLAUSE_RE.findall(decision.summary))
+    misattributed = sorted((in_reasons - applicable)
+                           | (in_summary - applicable - FRAMEWORK_CLAUSES))
     if misattributed:
         violations.append(
             f"The explanation references {', '.join(misattributed)}, which is not a binding "
-            "clause for this application. In reasons and summary, only reference the binding "
-            f"clauses ({', '.join(policy['binding_clauses']) or 'none'}) and, if needed, "
-            "POL-1.2/POL-1.3/POL-1.4")
+            "clause for this application. Each principal reason may only cite the binding "
+            f"clauses ({', '.join(policy['binding_clauses']) or 'none'}); the summary may "
+            "additionally mention POL-1.2/POL-1.3/POL-1.4 to explain precedence")
 
     # 4. Adverse action reasons (POL-7.2)
     if decision.decision in ("DECLINE", "REFER"):

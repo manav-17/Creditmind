@@ -6,6 +6,8 @@ output schema, then applies deterministic safeguards. If the LLM call fails, the
 falls back to a deterministic result so the pipeline never crashes mid-application.
 """
 
+import re
+
 from agents.base import ask
 from agents.prompts import (DECISION_SYSTEM, EXPLAIN_SYSTEM, FRAUD_SYSTEM, POLICY_SYSTEM,
                             REPORT_SYSTEM)
@@ -88,6 +90,7 @@ def policy_agent(state, rule_engine, retrieved, config=None):
     triggered = {h["clause_id"] for h in rule_engine["hits"] if h["outcome"] != "NOTE"}
     payload = {
         "applicant_profile": state["profile"],
+        "security_flags": state["llm_view"].get("security_flags", []),
         "rule_engine": {"required_outcome": rule_engine["required_outcome"],
                         "triggered_rules": rule_engine["hits"]},
         "retrieved_clauses": [{"clause_id": c["clause_id"], "title": c["title"],
@@ -166,6 +169,29 @@ def decision_agent(state, feedback=None, config=None, temperature=0.0, name="dec
 
 
 # ----------------------------------------------------------------------------- Report
+NEUTRAL_VERIFICATION = "We were unable to verify information provided in your application."
+FRAUD_WORDS = re.compile(r"fraud|manipulat|inject|POL-6", re.IGNORECASE)
+
+
+def reasons_for_applicant(state):
+    """Adverse-action reasons for the letter, built by code (POL-7.2).
+
+    Credit reasons keep their figures; fraud details are replaced by one neutral sentence,
+    so the applicant is never told what fraud screening detected.
+    """
+    decision = state.get("final_decision") or {}
+    reasons = []
+    for reason in decision.get("principal_reasons", []):
+        if FRAUD_WORDS.search(reason):
+            continue
+        reasons.append(re.sub(r"\s*\(?POL-\d+\.\d+\)?", "", reason).strip().rstrip("."))
+    fraud_involved = (state.get("fraud") or {}).get("refer_for_fraud_review") or any(
+        FRAUD_WORDS.search(r) for r in decision.get("principal_reasons", []))
+    if fraud_involved:
+        reasons.append(NEUTRAL_VERIFICATION.rstrip("."))
+    return reasons
+
+
 def report_agent(state, config=None):
     record = {
         "application_id": state["application_id"],
@@ -177,6 +203,7 @@ def report_agent(state, config=None):
         "policy_findings": [f for f in state["policy"]["findings"] if f["applies"]],
         "fraud_screening": {k: state["fraud"].get(k) for k in ("risk_level", "indicators")},
         "human_review": state.get("human_review"),
+        "reasons_for_applicant": reasons_for_applicant(state),
     }
     try:
         result = ask(ReportOutput, REPORT_SYSTEM, record, config, tier="strong",
