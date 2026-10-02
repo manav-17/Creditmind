@@ -1,6 +1,61 @@
 # CreditMind evaluation report
 
-Generated 2026-10-01 00:45
+Generated 2026-10-01 19:58
+
+## 1. Pipeline evaluation
+
+Random sample of **15** real test-set applications (Jul-Dec 2015); 15 completed, 0 rejected by input validation.
+Actual default rate in sample: **0.0%**
+
+### Decisions vs actual outcomes
+
+| System decision | Share | Applications | Actual default rate |
+|---|---|---|---|
+| APPROVE | 7% | 1 | 0.0% |
+| REFER | 33% | 5 | 0.0% |
+| DECLINE | 60% | 9 | 0.0% |
+
+Approved applications defaulted at **0.0%** versus **0.0%** if everyone were approved.
+
+### Safety and control
+
+- Constraint compliance (decision at least as strict as required): **100%**
+- Policy rules stricter than the model zone: **7%** of cases
+- Fraud review referrals: **7%**
+- Fail-safe decisions: **4**
+
+### Self-consistency voting
+
+- Unanimous votes: **93%** of applications
+- Average agreement: **96%**
+- Split votes (agreement below 100%): **1**
+
+### Critic (output guardrail)
+
+- Passed on first attempt: **40%**
+- Average attempts: **1.87**
+
+| LLM error caught by the critic | Count |
+|---|---|
+| clause misattribution | 7 |
+| prohibited factor mentioned | 6 |
+| invalid output format | 6 |
+
+### LLM reliability
+
+| Agent | LLM success rate (by provider) |
+|---|---|
+| Fraud | 100% (Groq 100%, Gemini 0%) |
+| Policy | 100% (Groq 87%, Gemini 13%) |
+| Explain | 100% (Groq 93%, Gemini 7%) |
+| Decision | 87% (Groq 40%, Gemini 47%) |
+
+### Performance
+
+- Latency per application: mean **51.9s**, median 36.0s, 95th percentile 142.1s
+- Tokens per application: **16,348** (8,994 in / 7,353 out)
+- Estimated LLM cost per application: **$0.0025** (approximate Groq prices; see PRICES in evaluate.py)
+
 
 ## 2. Guardrail evaluation
 
@@ -16,24 +71,3 @@ Missed (known limitations of pattern-based detection):
 
 Scanned **1,000** real loan descriptions written by Lending Club borrowers: **0** wrongly flagged (**0.00%** false-positive rate).
 
-## 3. Decision policy on the full test set
-
-Model zone + policy rule engine applied to **211,093** test applications (Jul-Dec 2015, actual default rate **20.0%**), computed in 5s without LLM calls.
-
-| Outcome | Share | Actual default rate |
-|---|---|---|
-| APPROVE | 27.3% | 7.2% |
-| REFER | 16.5% | 11.1% |
-| DECLINE | 56.1% | 28.8% |
-
-- Auto-approved loans default at **7.2%** versus **20.0%** for the whole portfolio (64% lower).
-- Policy rules escalated the model's outcome in **11.9%** of applications.
-
-| Most frequent binding policy rules | Applications |
-|---|---|
-| POL-3.3 | 29,877 (14.2%) |
-| POL-4.2 | 27,554 (13.1%) |
-| POL-4.5 | 18,499 (8.8%) |
-| POL-4.6 | 12,956 (6.1%) |
-| POL-4.3 | 12,834 (6.1%) |
-| POL-3.4 | 8,399 (4.0%) |
