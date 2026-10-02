@@ -6,7 +6,7 @@ CreditMind assesses a loan application the way a careful credit team would: a ca
 
 **Live desk:** https://web-production-4d915.up.railway.app (password protected because it calls paid LLM APIs; access on request)
 **API docs:** https://creditmind-production-acb2.up.railway.app/docs
-**Demo video:** _add your YouTube link here_
+**Demo video:** (https://drive.google.com/file/d/12MNWetGcLrjBgz3rK0hp9CGjq5fCJkn3/view?usp=sharing)
 
 ![Decision page](docs/screenshots/decision.png)
 *A referred application declined by a credit officer: the risk model alone would approve (PD 9.7%), but two policy rules (credit-seeking and a prompt-injection attempt) require a referral. All three decision votes agree and every figure in the explanation is verified.*
