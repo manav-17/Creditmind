@@ -475,6 +475,7 @@ def report(state: CreditState, config):
     except OSError:
         pass
     return {"report": result, "final_outcome": state["final_outcome"],
+            "policy": state["policy"],  # refreshed governance findings reach the stored record
             "audit": event("report", f"memo saved, outcome {state['final_outcome']}")}
 
 
