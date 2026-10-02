@@ -199,7 +199,13 @@ cp .env.example .env          # VITE_API_URL=http://localhost:8000
 npm run dev                   # http://localhost:5173
 ```
 
-The trained model and the policy index are committed, so the app runs without the raw data. To rebuild them, download the Lending Club `loan.csv` into `data/raw/` and run `prepare_data.py` and `ml/train_model.py`.
+The trained model and the policy index are committed, so the app runs without the raw data. To rebuild them from the repository root, download the Lending Club `loan.csv` into `data/raw/` and run:
+
+```bash
+python prepare_data.py          # cleaning, out-of-time split, demo applicants
+python ml/train_model.py        # XGBoost + isotonic calibration, thresholds
+python rag/ingest_policy.py     # policy index (FAISS + BM25)
+```
 
 Other commands:
 
