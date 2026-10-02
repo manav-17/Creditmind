@@ -18,6 +18,7 @@ en_core_web_sm
 langgraph
 langgraph-checkpoint-postgres
 langchain-core
+langchain
 langchain-groq
 langchain-google-genai
 langfuse
