@@ -118,6 +118,57 @@ def _framework_text(clause_id, state, constraints):
     }.get(clause_id)
 
 
+def _governance_finding(clause_id, state, constraints):
+    """POL-8.x (review and governance): (applies, explanation) written by code from the
+    actual review state, or None for other clauses."""
+    if not clause_id.startswith("POL-8."):
+        return None
+    review = state.get("human_review")
+    decided = (state.get("final_decision") or {}).get("decision") or constraints["required_outcome"]
+    referred = decided == "REFER"
+    if clause_id == "POL-8.1":
+        if review:
+            reason = "with a written reason" if review.get("note") else "without a written reason"
+            return True, (f"Credit officer {review['officer_id']} decided "
+                          f"{review['decision'].lower()}, {reason}.")
+        if referred:
+            return True, "The application is referred, so only a credit officer may approve it."
+        return False, f"Not a referral: the outcome ({decided.lower()}) needs no officer decision."
+    if clause_id == "POL-8.2":
+        if review and review.get("override"):
+            return True, (f"Override: credit officer {review['officer_id']} approved a referred "
+                          "application; the written justification is kept in the audit trail.")
+        if review:
+            return False, ("Not an override: the officer declined, which is no more lenient "
+                           "than the system's referral.")
+        if referred:
+            return True, ("Approving this referral would override the system and requires a "
+                          "written justification.")
+        return False, "No override: the outcome was decided without officer review."
+    if clause_id == "POL-8.3":
+        version = state.get("risk", {}).get("model_version", "unknown")
+        items = [f"the model version ({version})", "the probability of default",
+                 "the policy clauses", "the explanation"]
+        if review:
+            items.append("the officer review")
+        return True, f"The decision record keeps {', '.join(items[:-1])} and {items[-1]}."
+    if clause_id == "POL-8.4":
+        return False, "Model monitoring applies to the model as a whole, not to one application."
+    return None
+
+
+def _refresh_governance(state):
+    """Rewrite POL-8.x findings with the review state as it is now (used at report time)."""
+    findings = []
+    for finding in state["policy"].get("findings", []):
+        governance = _governance_finding(finding["clause_id"], state, state["constraints"])
+        if governance:
+            applies, text = governance
+            finding = {**finding, "applies": applies, "explanation": text, "source": "system"}
+        findings.append(finding)
+    return findings
+
+
 def _ground_findings(state, hits, constraints):
     """Code writes what code knows; the LLM's text is kept only where it adds understanding.
 
@@ -133,10 +184,15 @@ def _ground_findings(state, hits, constraints):
     for finding in state["policy"].get("findings", []):
         cid = finding["clause_id"]
         rule_reason = triggered.get(cid) or noted.get(cid)
-        framework = None if rule_reason else _framework_text(cid, state, constraints)
+        governance = None if rule_reason else _governance_finding(cid, state, constraints)
+        framework = None if rule_reason or governance else _framework_text(cid, state,
+                                                                             constraints)
         if rule_reason:
             finding = {**finding, "applies": True, "explanation": rule_reason,
                        "source": "rule_engine"}
+        elif governance:
+            applies, text = governance
+            finding = {**finding, "applies": applies, "explanation": text, "source": "system"}
         elif framework:
             finding = {**finding, "applies": True, "explanation": framework,
                        "source": "system"}
@@ -382,6 +438,8 @@ def policy_table(findings):
 def report(state: CreditState, config):
     if not state.get("final_outcome"):
         state = {**state, "final_outcome": state["final_decision"]["decision"]}
+    # Governance findings must describe the review as it actually happened
+    state = {**state, "policy": {**state["policy"], "findings": _refresh_governance(state)}}
     result = report_agent(state, config)
 
     # Last line of defence: no personal data in anything we store or send
