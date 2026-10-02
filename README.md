@@ -33,13 +33,14 @@ An LLM may make a decision **stricter** (for example, escalate to a referral) bu
 
 ```mermaid
 flowchart LR
-    U["Credit officer<br/>(browser)"] --> W["React + Vite + Tailwind<br/>Railway: web"]
-    W -->|"HTTPS, signed token"| A["FastAPI<br/>Railway: api"]
+    B["Credit officer's browser"] -->|"loads the app"| W["Web service<br/>React + Vite + Tailwind, static"]
+    B -->|"HTTPS, signed token"| A["API service<br/>FastAPI + input guardrails"]
     A --> G["LangGraph workflow"]
-    G --> M["XGBoost + isotonic<br/>calibration, SHAP"]
+    G --> M["Risk model<br/>XGBoost + isotonic calibration, SHAP"]
     G --> R["Policy RAG<br/>FAISS + BM25, RRF"]
-    G --> L["LLMs: Groq primary,<br/>Gemini fallback"]
+    G --> L["LLMs<br/>Groq primary, Gemini fallback"]
     A --> P[("Postgres<br/>applications, PII vault,<br/>workflow checkpoints")]
+    G --> P
     G -.->|traces| F["Langfuse"]
 ```
 
@@ -47,24 +48,25 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    IN["Application"] --> GI["Input guardrails<br/>schema, PII masking, injection removal"]
-    GI --> IT["Intake"]
-    IT --> RS["Risk scoring (code)"]
-    IT --> FC["Fraud agent"]
-    IT --> PC["Policy agent<br/>rule engine + RAG"]
-    RS --> CO["Consolidate<br/>hard constraints in code"]
+    APP["Application"] --> GI["Input guardrails, API layer<br/>schema validation, PII moved to the vault,<br/>prompt injection removed"]
+    GI -->|"invalid"| REJ["Rejected before the workflow starts"]
+    GI -->|"valid"| IT["Intake"]
+    IT --> RS["Risk scoring<br/>XGBoost + SHAP, code"]
+    IT --> FC["Fraud check<br/>agent + code escalation"]
+    IT --> PC["Policy check<br/>rule engine + RAG + agent"]
+    RS --> CO["Consolidate<br/>code sets the minimum outcome"]
     FC --> CO
     PC --> CO
     CO --> EX["Explain agent"]
     EX --> DV["Decision agent<br/>3 parallel votes, temperature 0.7"]
     DV --> TA["Tally<br/>median strictness"]
     TA --> GR["Grounding check<br/>every figure vs the data"]
-    GR --> CR{"Critic"}
-    CR -->|"violation: retry, max 3"| DV
-    CR -->|"3 failures"| FS["Fail-safe: refer"]
-    CR -->|"refer"| HR["Credit officer review<br/>(workflow pauses)"]
-    CR -->|"approve or decline"| RP["Report agent<br/>credit memo + applicant letter"]
-    FS --> HR
+    GR --> CR{"Critic<br/>output guardrail, code"}
+    CR -->|"blocked, fewer than 3 attempts"| RV["Corrective vote<br/>1 vote with the critic's feedback"]
+    RV --> TA
+    CR -->|"passed, or fail-safe after 3 attempts"| OUT{"Outcome"}
+    OUT -->|"refer"| HR["Credit officer review<br/>workflow pauses, interrupt"]
+    OUT -->|"approve or decline"| RP["Report agent<br/>credit memo + applicant letter"]
     HR --> RP
 ```
 
@@ -86,7 +88,7 @@ flowchart TD
 - Output: the critic checks strictness, clause citations (a reason may only cite the clause it comes from), numeric claims against the model, prohibited factors, and output format.
 - Grounding: every figure in a decision explanation must match a value computed by code.
 
-**Self-consistency voting.** Three decision votes run in parallel (LangGraph Send API); the tally takes the median strictness.
+**Self-consistency voting.** Three decision votes run in parallel (LangGraph Send API); the tally takes the median strictness. If the critic blocks the result, one corrective vote is run with the critic's feedback, up to 3 attempts in total. After that, a deterministic fail-safe applies the conservative outcome: a referral, or a decline when the rules require one.
 
 **Human in the loop.** Referred applications pause the graph (LangGraph interrupt, Postgres checkpointer). Approving a referral overrides the system, so it requires a written justification, which is stored in the audit trail.
 
